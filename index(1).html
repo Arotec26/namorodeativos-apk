@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>AROTEC • Namoro</title>
+<style>
+body{margin:0;background:#111;color:#eee;font-family:Arial,sans-serif}
+header{position:sticky;top:0;background:#181818;padding:14px 12px;border-bottom:1px solid #333;z-index:2}
+h1{font-size:19px;margin:0 0 4px}.sub{font-size:12px;color:#aaa}
+button{background:#2b2b2b;color:#fff;border:1px solid #555;border-radius:8px;padding:9px 12px;font-weight:bold}
+#refresh{margin-top:9px;width:100%}
+#status{font-size:12px;color:#aaa;padding:8px 12px}
+.card{margin:7px 9px;padding:12px;background:#1b1b1b;border:1px solid #333;border-radius:10px}
+.row{display:flex;justify-content:space-between;gap:8px}
+.ticker{font-size:18px;font-weight:bold}.price{font-size:17px}
+.meta{font-size:11px;color:#aaa;margin-top:5px;line-height:1.45}
+.signal{margin-top:9px;font-size:12px;font-weight:bold}
+.details{display:none;margin-top:10px;padding-top:9px;border-top:1px solid #333;font-size:12px;line-height:1.6}
+.open{display:block}.mini{margin-top:7px;width:100%}
+.good{color:#8ee28e}.warn{color:#ffd36e}.alert{color:#ff8e8e}
+</style>
+</head>
+<body>
+<header>
+<h1>AROTEC • ATIVOS EM NAMORO</h1>
+<div class="sub">Protótipo móvel — contexto → reação → execução</div>
+<button id="refresh" onclick="refreshAll()">ATUALIZAR PREÇOS</button>
+</header>
+<div id="status">Pronto para teste.</div>
+<main id="list"></main>
+
+<script>
+const ativos=[
+{ticker:"AURA33",regiao:"R$ 134–139",ultima:"R$ 142,90",minimo:"R$ 134,00",saida:"R$ 147,94",teto:"R$ 160,00"},
+{ticker:"BBSE3",regiao:"—",ultima:"—",minimo:"R$ 42,00",saida:"—",teto:"—"},
+{ticker:"S2GM34",regiao:"—",ultima:"R$ 17,50",minimo:"—",saida:"—",teto:"R$ 22,00"},
+{ticker:"AVGO34",regiao:"—",ultima:"R$ 25,00",minimo:"—",saida:"R$ 25,75",teto:"—"},
+{ticker:"BBDC4",regiao:"—",ultima:"R$ 16,80",minimo:"—",saida:"R$ 17,30",teto:"—"},
+{ticker:"POMO4",regiao:"—",ultima:"R$ 5,25 / 4,83 / 4,81 / 4,50",minimo:"R$ 4,10",saida:"—",teto:"—"},
+{ticker:"MDIA3",regiao:"—",ultima:"R$ 17,12",minimo:"—",saida:"R$ 17,63",teto:"—"}
+];
+
+function card(a,i){
+ return `<section class="card">
+ <div class="row"><div class="ticker">${a.ticker}</div><div class="price" id="p${i}">—</div></div>
+ <div class="meta">Compra: ${a.regiao} · Última: ${a.ultima}</div>
+ <div class="signal" id="s${i}">AGUARDANDO PREÇO</div>
+ <button class="mini" onclick="toggle(${i})">DETALHES</button>
+ <div class="details" id="d${i}">
+ Região: ${a.regiao}<br>Últimas compras: ${a.ultima}<br>
+ Mínimo visto: ${a.minimo}<br>Saída 3%: ${a.saida}<br>
+ Teto observado: ${a.teto}<br><br>
+ <b>AROtec:</b> semanal = contexto; 5m = execução.
+ </div></section>`;
+}
+function render(){list.innerHTML=ativos.map(card).join("")}
+function toggle(i){document.getElementById("d"+i).classList.toggle("open")}
+
+async function yahoo(ticker){
+ // Tentativa direta. Alguns navegadores podem bloquear CORS; nesse caso
+ // a tela continua utilizável como protótipo manual.
+ const u="https://query1.finance.yahoo.com/v8/finance/chart/"+ticker+".SA?range=1d&interval=5m";
+ const r=await fetch(u); const j=await r.json();
+ return j.chart.result[0].meta.regularMarketPrice;
+}
+function setSignal(a,p,i){
+ let s="OBSERVAR", cls="";
+ const nums=x=>x?parseFloat(x.replace("R$","").replace(".","").replace(",",".").trim()):null;
+ if(a.regiao!=="—"){
+   let z=a.regiao.replace("R$","").split("–");
+   let lo=parseFloat(z[0].replace(",",".")), hi=parseFloat(z[1].replace(",","."));
+   if(p<lo){s="ABAIXO DA REGIÃO";cls="good"}
+   else if(p<=hi){s="NA REGIÃO";cls="warn"}
+ }
+ if(a.saida!=="—" && p>=nums(a.saida)){s="ALVO 3% ATINGIDO";cls="good"}
+ let el=document.getElementById("s"+i);el.textContent=s;el.className="signal "+cls;
+}
+async function refreshAll(){
+ status.textContent="Consultando Yahoo Finance...";
+ let ok=0;
+ for(let i=0;i<ativos.length;i++){
+   try{
+     let p=await yahoo(ativos[i].ticker);
+     document.getElementById("p"+i).textContent="R$ "+p.toFixed(2).replace(".",",");
+     setSignal(ativos[i],p,i);ok++;
+   }catch(e){
+     document.getElementById("p"+i).textContent="—";
+     document.getElementById("s"+i).textContent="Yahoo indisponível no navegador";
+   }
+ }
+ status.textContent=ok+" de "+ativos.length+" preços consultados. (CORS pode limitar o teste.)";
+}
+render();
+</script>
+</body>
+</html>
