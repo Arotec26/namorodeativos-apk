@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>AROTEC • Namoro</title>
+
 <style>
 body{margin:0;background:#111;color:#eee;font-family:Arial,sans-serif}
 header{position:sticky;top:0;background:#181818;padding:14px 12px;border-bottom:1px solid #333;z-index:2}
@@ -21,16 +22,21 @@ button{background:#2b2b2b;color:#fff;border:1px solid #555;border-radius:8px;pad
 .good{color:#8ee28e}.warn{color:#ffd36e}.alert{color:#ff8e8e}
 </style>
 </head>
+
 <body>
+
 <header>
 <h1>AROTEC • ATIVOS EM NAMORO</h1>
 <div class="sub">Protótipo móvel — contexto → reação → execução</div>
 <button id="refresh" onclick="refreshAll()">ATUALIZAR PREÇOS</button>
 </header>
+
 <div id="status">Pronto para teste.</div>
+
 <main id="list"></main>
 
 <script>
+
 const ativos=[
 {ticker:"AURA33",regiao:"R$ 134–139",ultima:"R$ 142,90",minimo:"R$ 134,00",saida:"R$ 147,94",teto:"R$ 160,00"},
 {ticker:"BBSE3",regiao:"—",ultima:"—",minimo:"R$ 42,00",saida:"—",teto:"—"},
@@ -43,55 +49,102 @@ const ativos=[
 
 function card(a,i){
  return `<section class="card">
- <div class="row"><div class="ticker">${a.ticker}</div><div class="price" id="p${i}">—</div></div>
- <div class="meta">Compra: ${a.regiao} · Última: ${a.ultima}</div>
- <div class="signal" id="s${i}">AGUARDANDO PREÇO</div>
- <button class="mini" onclick="toggle(${i})">DETALHES</button>
- <div class="details" id="d${i}">
- Região: ${a.regiao}<br>Últimas compras: ${a.ultima}<br>
- Mínimo visto: ${a.minimo}<br>Saída 3%: ${a.saida}<br>
- Teto observado: ${a.teto}<br><br>
- <b>AROtec:</b> semanal = contexto; 5m = execução.
- </div></section>`;
-}
-function render(){list.innerHTML=ativos.map(card).join("")}
-function toggle(i){document.getElementById("d"+i).classList.toggle("open")}
+ <div class="row">
+  <div class="ticker">${a.ticker}</div>
+  <div class="price" id="p${i}">—</div>
+ </div>
 
-async function yahoo(ticker){
- // Tentativa direta. Alguns navegadores podem bloquear CORS; nesse caso
- // a tela continua utilizável como protótipo manual.
- const u="https://query1.finance.yahoo.com/v8/finance/chart/"+ticker+".SA?range=1d&interval=5m";
- const r=await fetch(u); const j=await r.json();
- return j.chart.result[0].meta.regularMarketPrice;
+ <div class="meta">
+  Compra: ${a.regiao} · Última: ${a.ultima}
+ </div>
+
+ <div class="signal" id="s${i}">AGUARDANDO PREÇO</div>
+
+ <button class="mini" onclick="toggle(${i})">DETALHES</button>
+
+ <div class="details" id="d${i}">
+  Região: ${a.regiao}<br>
+  Últimas compras: ${a.ultima}<br>
+  Mínimo visto: ${a.minimo}<br>
+  Saída 3%: ${a.saida}<br>
+  Teto observado: ${a.teto}<br><br>
+  <b>AROtec:</b> semanal = contexto; 5m = execução.
+ </div>
+
+ </section>`;
 }
-function setSignal(a,p,i){
- let s="OBSERVAR", cls="";
- const nums=x=>x?parseFloat(x.replace("R$","").replace(".","").replace(",",".").trim()):null;
- if(a.regiao!=="—"){
-   let z=a.regiao.replace("R$","").split("–");
-   let lo=parseFloat(z[0].replace(",",".")), hi=parseFloat(z[1].replace(",","."));
-   if(p<lo){s="ABAIXO DA REGIÃO";cls="good"}
-   else if(p<=hi){s="NA REGIÃO";cls="warn"}
- }
- if(a.saida!=="—" && p>=nums(a.saida)){s="ALVO 3% ATINGIDO";cls="good"}
- let el=document.getElementById("s"+i);el.textContent=s;el.className="signal "+cls;
+
+function render(){
+ list.innerHTML=ativos.map(card).join("");
 }
+
+function toggle(i){
+ document.getElementById("d"+i).classList.toggle("open");
+}
+
+
+/* TESTE ATUAL:
+   GitHub Pages → Cloudflare Worker
+*/
+
+async function testarWorker(){
+
+ const workerURL =
+ "https://winter-brook-e8ae.arotec26.workers.dev/";
+
+ const r = await fetch(workerURL);
+ const j = await r.json();
+
+ return j;
+}
+
+
 async function refreshAll(){
- status.textContent="Consultando Yahoo Finance...";
- let ok=0;
- for(let i=0;i<ativos.length;i++){
-   try{
-     let p=await yahoo(ativos[i].ticker);
-     document.getElementById("p"+i).textContent="R$ "+p.toFixed(2).replace(".",",");
-     setSignal(ativos[i],p,i);ok++;
-   }catch(e){
-     document.getElementById("p"+i).textContent="—";
-     document.getElementById("s"+i).textContent="Yahoo indisponível no navegador";
-   }
+
+ status.textContent="Testando conexão com AROTEC Proxy...";
+
+ /* Nesta etapa testamos somente AURA33. */
+
+ try{
+
+   const resposta = await testarWorker();
+
+   document.getElementById("p0").textContent="—";
+
+   document.getElementById("s0").textContent=
+     resposta.status === "ok"
+     ? "WORKER CONECTADO"
+     : "RESPOSTA INESPERADA";
+
+   document.getElementById("s0").className=
+     resposta.status === "ok"
+     ? "signal good"
+     : "signal alert";
+
+   status.textContent=
+     resposta.status === "ok"
+     ? "GitHub Pages → Cloudflare Worker: conexão OK."
+     : "Worker respondeu, mas a resposta não foi a esperada.";
+
+ }catch(e){
+
+   document.getElementById("p0").textContent="—";
+
+   document.getElementById("s0").textContent=
+     "WORKER INDISPONÍVEL";
+
+   document.getElementById("s0").className=
+     "signal alert";
+
+   status.textContent=
+     "Não foi possível conectar ao Cloudflare Worker.";
  }
- status.textContent=ok+" de "+ativos.length+" preços consultados. (CORS pode limitar o teste.)";
 }
+
+
 render();
+
 </script>
+
 </body>
 </html>
