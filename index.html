@@ -3,148 +3,133 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>AROTEC • Namoro</title>
-
+<title>AROTEC • Ativos em Namoro</title>
 <style>
-body{margin:0;background:#111;color:#eee;font-family:Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#111;color:#eee;font-family:Arial,sans-serif}
 header{position:sticky;top:0;background:#181818;padding:14px 12px;border-bottom:1px solid #333;z-index:2}
 h1{font-size:19px;margin:0 0 4px}.sub{font-size:12px;color:#aaa}
-button{background:#2b2b2b;color:#fff;border:1px solid #555;border-radius:8px;padding:9px 12px;font-weight:bold}
-#refresh{margin-top:9px;width:100%}
-#status{font-size:12px;color:#aaa;padding:8px 12px}
+button,input{font:inherit}button{background:#2b2b2b;color:#fff;border:1px solid #555;border-radius:8px;padding:10px 12px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.55}#refresh{margin-top:9px;width:100%}
+#status{font-size:12px;color:#aaa;padding:10px 12px;line-height:1.45}
+.searchbar{display:flex;gap:7px;margin-top:10px}.searchbar input{min-width:0;flex:1;background:#101010;color:#eee;border:1px solid #555;border-radius:8px;padding:10px}
 .card{margin:7px 9px;padding:12px;background:#1b1b1b;border:1px solid #333;border-radius:10px}
-.row{display:flex;justify-content:space-between;gap:8px}
-.ticker{font-size:18px;font-weight:bold}.price{font-size:17px}
-.meta{font-size:11px;color:#aaa;margin-top:5px;line-height:1.45}
-.signal{margin-top:9px;font-size:12px;font-weight:bold}
-.details{display:none;margin-top:10px;padding-top:9px;border-top:1px solid #333;font-size:12px;line-height:1.6}
-.open{display:block}.mini{margin-top:7px;width:100%}
-.good{color:#8ee28e}.warn{color:#ffd36e}.alert{color:#ff8e8e}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}.ticker{font-size:18px;font-weight:bold}.price{font-size:17px;font-weight:bold;text-align:right}
+.meta{font-size:11px;color:#aaa;margin-top:6px;line-height:1.5}.signal{margin-top:9px;font-size:12px;font-weight:bold}
+.details{display:none;margin-top:10px;padding-top:9px;border-top:1px solid #333;font-size:12px;line-height:1.7;color:#ccc;overflow-wrap:anywhere}
+.details.open{display:block}.mini{margin-top:9px;width:100%}.good{color:#8ee28e}.warn{color:#ffd36e}.alert{color:#ff8e8e}
+.empty{margin:12px;padding:16px;color:#aaa;text-align:center;border:1px dashed #444;border-radius:10px}
+footer{padding:12px;color:#777;font-size:10px;text-align:center}
 </style>
 </head>
-
 <body>
-
 <header>
 <h1>AROTEC • ATIVOS EM NAMORO</h1>
-<div class="sub">Protótipo móvel — contexto → reação → execução</div>
-<button id="refresh" onclick="refreshAll()">ATUALIZAR PREÇOS</button>
+<div class="sub">Contexto semanal → reação → execução em 5 minutos</div>
+<div class="searchbar">
+<input id="tickerInput" type="text" maxlength="10" placeholder="Pesquisar ticker (ex.: VALE3)" aria-label="Ticker para adicionar">
+<button id="add" onclick="adicionarAtivo()">ADICIONAR</button>
+</div>
+<button id="refresh" onclick="atualizarPrecos()">ATUALIZAR PREÇOS</button>
 </header>
-
-<div id="status">Pronto para teste.</div>
-
+<div id="status" role="status">Conectando ao AROTEC…</div>
 <main id="list"></main>
-
+<footer>AROTEC é uma ferramenta de apoio à decisão; não envia ordens de compra ou venda.</footer>
 <script>
-
-const ativos=[
-{ticker:"AURA33",regiao:"R$ 134–139",ultima:"R$ 142,90",minimo:"R$ 134,00",saida:"R$ 147,94",teto:"R$ 160,00"},
-{ticker:"BBSE3",regiao:"—",ultima:"—",minimo:"R$ 42,00",saida:"—",teto:"—"},
-{ticker:"S2GM34",regiao:"—",ultima:"R$ 17,50",minimo:"—",saida:"—",teto:"R$ 22,00"},
-{ticker:"AVGO34",regiao:"—",ultima:"R$ 25,00",minimo:"—",saida:"R$ 25,75",teto:"—"},
-{ticker:"BBDC4",regiao:"—",ultima:"R$ 16,80",minimo:"—",saida:"R$ 17,30",teto:"—"},
-{ticker:"POMO4",regiao:"—",ultima:"R$ 5,25 / 4,83 / 4,81 / 4,50",minimo:"R$ 4,10",saida:"—",teto:"—"},
-{ticker:"MDIA3",regiao:"—",ultima:"R$ 17,12",minimo:"—",saida:"R$ 17,63",teto:"—"}
-];
-
-function card(a,i){
- return `<section class="card">
- <div class="row">
-  <div class="ticker">${a.ticker}</div>
-  <div class="price" id="p${i}">—</div>
- </div>
-
- <div class="meta">
-  Compra: ${a.regiao} · Última: ${a.ultima}
- </div>
-
- <div class="signal" id="s${i}">AGUARDANDO PREÇO</div>
-
- <button class="mini" onclick="toggle(${i})">DETALHES</button>
-
- <div class="details" id="d${i}">
-  Região: ${a.regiao}<br>
-  Últimas compras: ${a.ultima}<br>
-  Mínimo visto: ${a.minimo}<br>
-  Saída 3%: ${a.saida}<br>
-  Teto observado: ${a.teto}<br><br>
-  <b>AROtec:</b> semanal = contexto; 5m = execução.
- </div>
-
- </section>`;
+"use strict";
+const WORKER_URL="https://winter-brook-e8ae.arotec26.workers.dev/";
+let ativos=[];
+const precos=Object.create(null), errosPreco=Object.create(null);
+const $=id=>document.getElementById(id);
+function seguro(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function dinheiro(v){if(v===null||v===undefined||v===""||!Number.isFinite(Number(v)))return "—";return Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
+function valor(v){return v===null||v===undefined||v===""?"—":dinheiro(v);}
+function regiao(a){
+ if(a.regiao_compra_min==null&&a.regiao_compra_max==null)return "—";
+ if(a.regiao_compra_min!=null&&a.regiao_compra_max!=null)return dinheiro(a.regiao_compra_min)+" a "+dinheiro(a.regiao_compra_max);
+ if(a.regiao_compra_min!=null)return "A partir de "+dinheiro(a.regiao_compra_min);
+ return "Até "+dinheiro(a.regiao_compra_max);
 }
-
+function sinal(a){
+ const p=precos[a.ticker]?.preco;
+ if(p==null)return {texto:errosPreco[a.ticker]?"COTAÇÃO INDISPONÍVEL":"AGUARDANDO PREÇO",classe:errosPreco[a.ticker]?"alert":"warn"};
+ if(a.regiao_compra_min!=null&&a.regiao_compra_max!=null&&p>=a.regiao_compra_min&&p<=a.regiao_compra_max)return {texto:"PREÇO NA REGIÃO DE COMPRA",classe:"good"};
+ if(a.teto!=null&&p>=a.teto)return {texto:"ATENÇÃO AO TETO OBSERVADO",classe:"alert"};
+ if(a.saida_3_percent!=null&&p>=a.saida_3_percent)return {texto:"ALVO DE SAÍDA ALCANÇADO",classe:"good"};
+ return {texto:"AGUARDAR",classe:"warn"};
+}
+function card(a){
+ const p=precos[a.ticker],s=sinal(a),preco=p?dinheiro(p.preco):(a.preco_atual!=null?dinheiro(a.preco_atual):"—");
+ const fonte=p?seguro(p.fonte||"Não informada")+" · "+seguro(p.horario||"Horário não informado"):(a.preco_atual!=null?"Valor registrado no D1; não atualizado nesta sessão.":"Nenhuma cotação carregada nesta sessão.");
+ return `<section class="card"><div class="row"><div class="ticker">${seguro(a.ticker)}</div><div class="price">${preco}</div></div>
+ <div class="meta">Compra: ${regiao(a)} · Última compra: ${valor(a.ultima_compra_preco)}</div>
+ <div class="signal ${s.classe}">${s.texto}</div>
+ <button class="mini" onclick="alternarDetalhes(${Number(a.id)})">DETALHES</button>
+ <div class="details" id="det-${Number(a.id)}">
+ <b>Preço apresentado:</b> ${preco}<br><b>Fonte / horário:</b> ${fonte}<br>
+ <b>Região de compra:</b> ${regiao(a)}<br><b>Última compra:</b> ${valor(a.ultima_compra_preco)}<br>
+ <b>Mínimo visto:</b> ${valor(a.minimo_visto)}<br><b>Saída 3%:</b> ${valor(a.saida_3_percent)}<br>
+ <b>Teto observado:</b> ${valor(a.teto)}<br><b>Nível de entrada:</b> ${seguro(a.nivel_entrada||"—")}<br>
+ <b>Status salvo no D1:</b> ${seguro(a.status||"—")}<br>
+ <b>Variação da fonte:</b> ${p&&p.variacao!=null?Number(p.variacao).toLocaleString("pt-BR",{maximumFractionDigits:2})+"%":"—"}<br>
+ <b>Estratégia:</b> semanal = contexto; 5 minutos = execução.
+ </div></section>`;
+}
 function render(){
- list.innerHTML=ativos.map(card).join("");
+ const lista=$("list"),acompanhados=ativos.filter(a=>Number(a.ativo_acompanhamento??1)===1);
+ lista.innerHTML=acompanhados.length?acompanhados.map(card).join(""):'<div class="empty">Nenhum ativo de acompanhamento foi retornado pelo D1.</div>';
 }
-
-function toggle(i){
- document.getElementById("d"+i).classList.toggle("open");
-}
-
-
-/* TESTE ATUAL:
-   GitHub Pages → Cloudflare Worker
-*/
-
-async function testarWorker(){
-
- const workerURL =
- "https://winter-brook-e8ae.arotec26.workers.dev/";
-
- const r = await fetch(workerURL);
- const j = await r.json();
-
+function alternarDetalhes(id){const el=$("det-"+id);if(el)el.classList.toggle("open");}
+async function getJSON(url,options){
+ const r=await fetch(url,options);let j;
+ try{j=await r.json();}catch{throw new Error("O Worker não retornou JSON válido.");}
+ if(!r.ok||j.status==="erro"||j.status==="error")throw new Error(j.mensagem||j.erro||("Falha HTTP "+r.status));
  return j;
 }
-
-
-async function refreshAll(){
-
- status.textContent="Testando conexão com AROTEC Proxy...";
-
- /* Nesta etapa testamos somente AURA33. */
-
+async function carregarAtivos(){
+ $("status").textContent="Carregando ativos cadastrados no D1…";
  try{
-
-   const resposta = await testarWorker();
-
-   document.getElementById("p0").textContent="—";
-
-   document.getElementById("s0").textContent=
-     resposta.status === "ok"
-     ? "WORKER CONECTADO"
-     : "RESPOSTA INESPERADA";
-
-   document.getElementById("s0").className=
-     resposta.status === "ok"
-     ? "signal good"
-     : "signal alert";
-
-   status.textContent=
-     resposta.status === "ok"
-     ? "GitHub Pages → Cloudflare Worker: conexão OK."
-     : "Worker respondeu, mas a resposta não foi a esperada.";
-
+  const j=await getJSON(WORKER_URL+"?teste=ativos");
+  if(!Array.isArray(j.dados))throw new Error("Resposta sem lista de ativos.");
+  ativos=j.dados;render();
+  $("status").textContent="Lista carregada do D1: "+ativos.length+" ativos cadastrados. Use ATUALIZAR PREÇOS para consultar cotações.";
  }catch(e){
-
-   document.getElementById("p0").textContent="—";
-
-   document.getElementById("s0").textContent=
-     "WORKER INDISPONÍVEL";
-
-   document.getElementById("s0").className=
-     "signal alert";
-
-   status.textContent=
-     "Não foi possível conectar ao Cloudflare Worker.";
+  $("status").textContent="Não foi possível carregar os ativos: "+e.message;
+  $("list").innerHTML='<div class="empty">Falha ao carregar a lista. Verifique o Worker e tente novamente.</div>';
  }
 }
-
-
-render();
-
+async function adicionarAtivo(){
+ const campo=$("tickerInput"),ticker=campo.value.trim().toUpperCase();
+ if(!/^[A-Z0-9]{4,10}$/.test(ticker)){$("status").textContent="Digite um ticker válido, com 4 a 10 letras ou números.";campo.focus();return;}
+ $("add").disabled=true;$("status").textContent="Adicionando "+ticker+" ao D1…";
+ try{
+  const j=await getJSON(WORKER_URL+"?acao=adicionar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticker})});
+  campo.value="";await carregarAtivos();
+  $("status").textContent=j.novo===false?ticker+" já estava cadastrado. Lista atualizada.":ticker+" adicionado ao acompanhamento.";
+ }catch(e){$("status").textContent="Não foi possível adicionar "+ticker+": "+e.message;}
+ finally{$("add").disabled=false;}
+}
+async function atualizarPrecos(){
+ if(!ativos.length)await carregarAtivos();
+ const lista=ativos.filter(a=>Number(a.ativo_acompanhamento??1)===1);
+ if(!lista.length)return;
+ $("refresh").disabled=true;let ok=0,falhas=0;
+ $("status").textContent="Consultando cotações pelo Worker…";
+ try{
+  for(const a of lista){
+   try{
+    const j=await getJSON(WORKER_URL+"?acao=pesquisar&ticker="+encodeURIComponent(a.ticker));
+    if(j.status!=="ok"||j.preco==null||!Number.isFinite(Number(j.preco)))throw new Error(j.mensagem||"Preço inválido.");
+    precos[a.ticker]={preco:Number(j.preco),fonte:j.fonte||"Não informada",horario:j.horario||"Não informado",variacao:j.variacao};
+    delete errosPreco[a.ticker];ok++;
+   }catch(e){errosPreco[a.ticker]=e.message||"Erro na consulta";falhas++;}
+   render();$("status").textContent="Consultando preços: "+(ok+falhas)+"/"+lista.length+"…";
+  }
+  const hora=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  $("status").textContent="Atualização concluída às "+hora+". Cotações recebidas: "+ok+"; falhas: "+falhas+".";
+ }finally{$("refresh").disabled=false;}
+}
+$("tickerInput").addEventListener("keydown",e=>{if(e.key==="Enter")adicionarAtivo();});
+carregarAtivos();
 </script>
-
 </body>
 </html>
