@@ -1,3 +1,4 @@
+
 {
   "name": "AROTEC • Ativos em Namoro",
   "short_name": "AROTEC",
@@ -13,6 +14,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "./arotec-icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
