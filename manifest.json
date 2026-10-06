@@ -9,9 +9,9 @@
   "theme_color": "#071b2b",
   "icons": [
     {
-      "src": "./arotec-icon.png",
+      "src": "./arotec-icon.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ]
