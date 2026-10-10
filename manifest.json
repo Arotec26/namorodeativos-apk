@@ -1,4 +1,4 @@
-
+```json
 {
   "name": "AROtec",
   "short_name": "AROtec",
@@ -9,6 +9,12 @@
   "background_color": "#071b2b",
   "theme_color": "#071b2b",
   "icons": [
+    {
+      "src": "./arotec-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "./arotec-icon.png",
       "sizes": "512x512",
@@ -23,3 +29,4 @@
     }
   ]
 }
+```
